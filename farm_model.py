@@ -2,7 +2,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Literal
 
-# TODO: sell rate, bank capacity
+SELL_RATE = 0.70
 
 @dataclass(frozen=True)     # Freezing it to prevent errors
 class FarmSpec:     # Specification for the farm
@@ -10,25 +10,43 @@ class FarmSpec:     # Specification for the farm
     cost: float     # The TOTAL cost of this farm (not how much an individual upgrade costs but everything)
     income: float = 0.0      # Cash earned per round (for non-bank farms), default is 0 for bank farms
     is_bank: bool = False
-    bank_deposit_cash: float = 0.0      # Deposited cash per round, works only for "X-4-X" farms and above
     bank_interest_rate: float = 0.15    # Interest per round
     bank_capacity: Literal[9500, 12500] | None = None    # The amount of cash a bank can hold (different between tier 3 and 4+)
-    collect_every: int | None = None  # The rounds after which you collect the cash in the bank
+    collect_every: int | None = None    # The rounds after which you collect the cash in the bank
 
     def __post_init__(self):
         if not self.is_bank:
             return
         
-        middle_tier = int(self.tier_name.split("-")[1])
+        middle_tier = int(self.tier_name.split("-")[1])     # Middle path validation
         expected = 9500 if middle_tier == 3 else 12500
 
         if self.bank_capacity != expected:
             raise ValueError(f"{self.tier_name}: capacity must be {expected}")
         if not self.collect_every or self.collect_every < 1:
             raise ValueError(f"{self.tier_name}: collect_every must be a positive integer")
-        if self.bank_deposit_cash <= 0:
-            raise ValueError(f"{self.tier_name}: bank_deposit_cash must be positive")
-    
 
+class _Farm:
 
+    def __init__(self, spec: FarmSpec):
+        self.spec = spec
+        self.balance = 0.0
+        self.age = 0
 
+    def cash_payout(self) -> float:
+        s = self.spec
+        if not s.is_bank:
+            return s.income
+
+        # Adds up the bank balance with its one in the previous round along with deposited cash (if any) and the interest
+        self.balance = min(s.bank_capacity, (self.balance + s.income) * (1 + s.bank_interest_rate))  
+
+        self.age += 1   # Increases the amount of passed rounds
+        if self.age % s.collect_every == 0:     
+            payout, self.balance = self.balance, 0.0    # Cash collected per s.collect_every round -> balance goes to 0 and we collect the payout
+            return payout
+
+        return 0.0
+
+    def sell_value(self) -> float:
+        return SELL_RATE * self.spec.cost + self.balance
