@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Literal
 
-SELL_RATE = 0.70
+SELL_RATE = 0.75
+SALVAGE_BONUS = 0.10
+
 
 @dataclass(frozen=True)     # Freezing it to prevent errors
 class FarmSpec:     # Specification for the farm
@@ -24,6 +26,11 @@ class FarmSpec:     # Specification for the farm
             raise ValueError(f"{self.tier_name}: capacity must be {expected}")
         if not self.collect_every or self.collect_every < 1:
             raise ValueError(f"{self.tier_name}: collect_every must be a positive integer")
+
+    @property
+    def sell_rate(self) -> float:
+        bottom_tier = int(self.tier_name.split("-")[2])   # Checks if it's the bottom path, since it has an increased sellback
+        return SELL_RATE + (SALVAGE_BONUS if bottom_tier >= 2 else 0.0)   # Later this gets returned in the RunningFarm class
 
 
 class RunningFarm: # A usable running instance of a farm using the specification from the class FarmSpec
@@ -49,4 +56,4 @@ class RunningFarm: # A usable running instance of a farm using the specification
         return 0.0
 
     def sell_value(self) -> float:
-        return SELL_RATE * self.spec.cost + self.balance
+        return self.spec.sell_rate * self.spec.cost + self.balance
