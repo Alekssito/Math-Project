@@ -27,7 +27,7 @@ def payback_period(spec: FarmSpec) -> float:
     return 1.0 / calculate_efficiency(spec)
 
 
-def bank_efficiency(spec: FarmSpec, max_interval: int) -> float:
+def bank_efficiency(spec: FarmSpec, max_interval: int) -> np.ndarray:
     """The efficiency for collect_every 1, 2, 3, ..., max_interval for only banks"""
 
     return np.array([calculate_efficiency(replace(spec, collect_every=k)) for k in range(1, max_interval + 1)]) #  Copies the farm spec with a different collect_every round
@@ -42,15 +42,15 @@ def simulate(spec: FarmSpec, n_rounds: int, starting_cash: float, max_slots: int
     """
 
     if n_rounds < 1 or starting_cash < 0:
-        raise ValueError("Invalid arguments, n_rounds must be over 1 and starting cash must be over 0")
+        raise ValueError("Invalid arguments, n_rounds must be at least 1 and starting cash must not be negative")
 
     cash = float(starting_cash)
     farms: list[RunningFarm] = []
     net_worth = np.zeros(n_rounds)
     n_farms = np.zeros(n_rounds, dtype=int)
 
-    for round in range(1, n_rounds + 1):
-        may_buy = stop_buying_after is None or round <= stop_buying_after
+    for current_round in range(1, n_rounds + 1):
+        may_buy = stop_buying_after is None or current_round <= stop_buying_after
 
         while(may_buy and cash >= spec.cost and (max_slots is None or len(farms) < max_slots)):
             cash -= spec.cost
@@ -58,8 +58,8 @@ def simulate(spec: FarmSpec, n_rounds: int, starting_cash: float, max_slots: int
 
         cash += background + sum(farm.cash_payout() for farm in farms)
 
-        net_worth[round - 1] = cash + sum(farm.sell_value() for farm in farms)
-        n_farms[round - 1] = len(farms)
+        net_worth[current_round - 1] = cash + sum(farm.sell_value() for farm in farms)
+        n_farms[current_round - 1] = len(farms)
 
     return SimulationResult(net_worth, n_farms)
 
@@ -80,4 +80,29 @@ def best_stop_round(spec: FarmSpec, n_rounds: int, starting_cash: float, **kwarg
     return int(final_net_worth_per_round.argmax()), final_net_worth_per_round 
 
 
+def rank_agreement(specs: list[FarmSpec], net_worth: np.ndarray) -> np.ndarray:
+    """Spearman correlation between the efficiency ranking and the net worth ranking for every round
+        1 = identical order
+        -1 = reversed
 
+        Spearman = Pearson correlation of the ranks
+        argsort().argsort() turns values into ranks
+    """
+
+    efficiency_ranks = np.array([calculate_efficiency(spec) for spec in specs]).argsort().argsort()
+    net_worth_ranks = net_worth.argsort(axis=0).argsort(axis=0)
+
+    return np.array([np.corrcoef(efficiency_ranks, net_worth_ranks[:, r])[0, 1] for r in range(net_worth.shape[1])])
+
+
+def leader_changes(net_worth: np.ndarray) -> np.ndarray:
+    """Returns the rounds in which a different farm spec takes the lead for better efficiency"""
+
+    leaders = net_worth.argmax(axis=0)
+    return np.flatnonzero(leaders[1:] != leaders[:-1]) + 2
+
+
+def rank_by_round(net_worth: np.ndarray) -> np.ndarray:
+    """For each round (column), farm spec indices ordered best to worst"""
+
+    return np.argsort(-net_worth, axis=0, kind="stable")
