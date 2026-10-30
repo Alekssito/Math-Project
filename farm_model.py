@@ -1,4 +1,3 @@
-import numpy as np
 from dataclasses import dataclass
 from typing import Literal
 
@@ -26,7 +25,8 @@ class FarmSpec:     # Specification for the farm
         if not self.collect_every or self.collect_every < 1:
             raise ValueError(f"{self.tier_name}: collect_every must be a positive integer")
 
-class _Farm:
+
+class RunningFarm: # A usable running instance of a farm using the specification from the class FarmSpec
 
     def __init__(self, spec: FarmSpec):
         self.spec = spec
