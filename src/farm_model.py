@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-SELL_RATE = 0.75
+FARM_SELL_RATE = 0.77
 SALVAGE_BONUS = 0.10
 
 
@@ -30,7 +30,7 @@ class FarmSpec:     # Specification for the farm
     @property
     def sell_rate(self) -> float:
         bottom_tier = int(self.tier_name.split("-")[2])   # Checks if it's the bottom path, since it has an increased sellback
-        return SELL_RATE + (SALVAGE_BONUS if bottom_tier >= 2 else 0.0)   # Later this gets returned in the RunningFarm class
+        return FARM_SELL_RATE + (SALVAGE_BONUS if bottom_tier >= 2 else 0.0)   # Later this gets returned in the RunningFarm class
 
 
 class RunningFarm: # A usable running instance of a farm using the specification from the class FarmSpec
