@@ -9,7 +9,7 @@ def load_specs(path: str | Path, collect_every: int | dict[str, int]) -> list[Fa
 
         collect_every - after how many rounds a bank is collected. It's either the same number for
         every bank or a dictionary of the tier name and the amount of rounds, for example: 
-        {"2-3-0": 11, "2-4-0": 14}. Non-bank farms ignore it
+        {"2-3-0": 11, "2-4-0": 13}. Non-bank farms ignore it
     """
 
     table = pd.read_csv(path)
