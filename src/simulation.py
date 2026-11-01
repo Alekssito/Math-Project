@@ -1,5 +1,5 @@
 import numpy as np
-from farm_model import FarmSpec, RunningFarm
+from src.farm_model import FarmSpec, RunningFarm
 from dataclasses import dataclass, replace
 
 @dataclass(frozen=True)

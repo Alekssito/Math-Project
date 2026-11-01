@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from farm_model import FarmSpec
+from src.farm_model import FarmSpec
 
 REQUIRED_COLUMNS = { "tier_name", "cost", "income", "is_bank", "bank_capacity" }
 
