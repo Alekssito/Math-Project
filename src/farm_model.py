@@ -40,7 +40,7 @@ class RunningFarm: # A usable running instance of a farm using the specification
         self.balance = 0.0
         self.age = 0
 
-    def cash_payout(self) -> float:
+    def advance_round(self) -> float: # Advance one round; return the cash paid out to the player
         s = self.spec
         if not s.is_bank:
             return s.income

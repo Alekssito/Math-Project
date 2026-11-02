@@ -1,5 +1,6 @@
 import numpy as np
 from src.farm_model import FarmSpec, RunningFarm
+from scipy.stats import rankdata
 from dataclasses import dataclass, replace
 
 @dataclass(frozen=True)
@@ -19,7 +20,7 @@ def calculate_efficiency(spec: FarmSpec) -> float:
 
     # Each call is one round. Each call returns 0, only the last call returns the collected balance, so the sum is that one payout
     # In the simulate function this single cycle plays out for multiple rounds
-    collected_cash = sum(farm.cash_payout() for _ in range(spec.collect_every))   
+    collected_cash = sum(farm.advance_round() for _ in range(spec.collect_every))   
 
     efficiency = (collected_cash / spec.collect_every) / spec.cost   # Averages the cycle then divides by the cost
     return efficiency
@@ -63,7 +64,7 @@ def simulate(spec: FarmSpec, n_rounds: int, starting_cash: float, max_slots: int
             cash -= spec.cost
             farms.append(RunningFarm(spec))
 
-        cash += background + sum(farm.cash_payout() for farm in farms)  # Every farm pays out (banks pay 0 until they're collected)
+        cash += background + sum(farm.advance_round() for farm in farms)  # Every farm pays out (banks pay 0 until they're collected)
 
         net_worth[current_round - 1] = cash + sum(farm.sell_value() for farm in farms)  # Records the result
         n_farms[current_round - 1] = len(farms)
@@ -86,9 +87,12 @@ def best_stop_round(spec: FarmSpec, n_rounds: int, starting_cash: float, **kwarg
     """
 
     # Runs the entire simulation once for every possible last buying round and keeps the net worth at the end
-    final_net_worth_per_stop_round = np.array([simulate(spec, n_rounds, starting_cash, stop_buying_after=last_buy_round, **kwargs).net_worth[-1] for last_buy_round in range(n_rounds + 1)])
-
-    return int(final_net_worth_per_stop_round.argmax()), final_net_worth_per_stop_round  # argmax gives the position of the biggest value, and the position equals the stop round 
+    final_net_worth = np.array([
+        simulate(spec, n_rounds, starting_cash,
+                stop_buying_after=last_buy_round, **kwargs).net_worth[-1]
+        for last_buy_round in range(n_rounds + 1)
+    ])
+    return int(final_net_worth.argmax()), final_net_worth  # argmax gives the position of the biggest value, and the position equals the stop round 
 
 
 def rank_agreement(specs: list[FarmSpec], net_worth: np.ndarray) -> np.ndarray:
@@ -99,17 +103,14 @@ def rank_agreement(specs: list[FarmSpec], net_worth: np.ndarray) -> np.ndarray:
 
         Spearman = Pearson correlation of the ranks
         argsort().argsort() turns values into ranks where 0 is the smallest
+        Ties receive average ranks
     """
 
-    efficiency_ranks = np.array([calculate_efficiency(spec) for spec in specs]).argsort().argsort()
+    efficiency = np.array([calculate_efficiency(spec) for spec in specs])
 
-    # net_worth has farms as rows and rounds as columns. axis=0 means "sort down each
-    # column", so every round gets ranked on its own
-    net_worth_ranks = net_worth.argsort(axis=0).argsort(axis=0)
+    efficiency_ranks = rankdata(efficiency)             # tied values get the average rank
+    net_worth_ranks = rankdata(net_worth, axis=0)       # every round (column) ranked separately
 
-    # For every round r: take that round's column of ranks ([:, r]) and correlate it
-    # with the efficiency ranks. np.corrcoef returns a 2x2 table, and [0, 1] is the
-    # correlation between our two inputs
     return np.array([np.corrcoef(efficiency_ranks, net_worth_ranks[:, r])[0, 1] for r in range(net_worth.shape[1])])
 
 
@@ -125,11 +126,3 @@ def leader_changes(net_worth: np.ndarray) -> np.ndarray:
     # flatnonzero gives the positions of the True values
     # Position i compares rounds i + 1 and i + 2 (counting from 1), so the new leader appears in round i + 2
     return np.flatnonzero(changed) + 2
-
-
-def rank_by_round(net_worth: np.ndarray) -> np.ndarray:
-    """For each round (column), farm spec indices ordered best to worst"""
-
-    # The minus sign flips the order so the biggest net worth comes first, axis=0 sorts
-    # each round (column) separately, and kind="stable" keeps tied farms in their original order
-    return np.argsort(-net_worth, axis=0, kind="stable")
