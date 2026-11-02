@@ -27,7 +27,7 @@ A math and Python project about the Banana Farm tower in [Bloons TD 6](https://w
    ```
 3. Open `project.ipynb` in Jupyter and choose *Restart & Run All*.
 4. Run the tests from the repository root:
-   ```
+   ```bash
    python -m pytest
    ```
 
@@ -51,3 +51,6 @@ The notation is `[top path]-[middle path]-[bottom path]`. To add a build, add a 
 - No IMF Loan deposits, abilities, synergies, strategies, bosses, or other income towers.
 - The model is not a guide to the best in-game farming strategy. Comparing builds is the method used to test the efficiency metric.
 - The game shows bank balances rounded down, while the model keeps decimals (a difference below 1 per round).
+
+## Media
+Inside the **media** folder there are **images** and **videos** used in the project. Videos are used to showcase the measurements in-game in the ***In-game Verification*** section. The videos won't embed if using the preview from GitHub - instead manually open them from the file system or run the project on your device.
